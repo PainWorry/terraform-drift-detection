@@ -1,0 +1,54 @@
+Note: Objects have changed outside of Terraform
+
+Terraform detected the following changes made outside of Terraform since the
+last "terraform apply" which may have affected this plan:
+
+  # aws_security_group.drift_canary has been modified outside of Terraform
+  ~ resource "aws_security_group" "drift_canary" {
+        id                     = "sg-0a8b7c6d5e4f3210a"
+        name                   = "onelink-staging-drift-canary-sg"
+      ~ ingress                = [
+            {
+                cidr_blocks      = [
+                    "10.0.0.0/8",
+                ]
+                description      = "Managed by Terraform - Baseline HTTPS"
+                from_port        = 443
+                protocol         = "tcp"
+                to_port          = 443
+            },
+          - {
+              - cidr_blocks      = [
+                  - "0.0.0.0/0",
+                ]
+              - description      = "OUT-OF-BAND CLICKOPS: Urgent SSH Debugging"
+              - from_port        = 22
+              - protocol         = "tcp"
+              - to_port          = 22
+            },
+        ]
+        # (4 unchanged attributes hidden)
+    }
+
+Unless you have made equivalent changes to your configuration, or ignored the
+relevant attributes using "ignore_changes", the following plan will bring the
+real-world infrastructure back into sync with your Terraform configuration.
+
+Terraform will perform the following actions:
+
+  # aws_security_group.drift_canary will be updated in-place
+  ~ resource "aws_security_group" "drift_canary" {
+        id   = "sg-0a8b7c6d5e4f3210a"
+        name = "onelink-staging-drift-canary-sg"
+      ~ ingress = [
+          - {
+              - cidr_blocks = ["0.0.0.0/0"]
+              - from_port   = 22
+              - protocol    = "tcp"
+              - to_port     = 22
+            },
+            # (1 unchanged block hidden)
+        ]
+    }
+
+Plan: 0 to add, 1 to change, 0 to destroy.

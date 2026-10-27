@@ -1,0 +1,74 @@
+name: Terraform Configuration Drift Detection
+
+on:
+  schedule:
+    # Daily at 08:00 AM Indochina Time (ICT, UTC+7) -> 01:00 AM UTC
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target Terraform environment directory'
+        required: false
+        default: 'environments/staging'
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: tf-drift-${{ github.event.inputs.environment || 'environments/staging' }}
+  cancel-in-progress: false
+
+jobs:
+  detect-drift:
+    name: Check Drift & Alert ClickUp
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DRIFT_SCANNER_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'ap-southeast-1' }}
+          role-session-name: GHA-Terraform-Drift-Detection
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
+          terraform_wrapper: false
+
+      - name: Set up Python Runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Initialize Terraform Working Directory
+        env:
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET || secrets.TF_STATE_BUCKET }}
+        run: |
+          TARGET_DIR="${{ github.event.inputs.environment || 'environments/staging' }}"
+          echo "[INFO] Running terraform init in: ${TARGET_DIR}"
+          if [ ! -d "${TARGET_DIR}" ]; then
+            echo "[ERROR] Target directory '${TARGET_DIR}' not found." >&2
+            exit 1
+          fi
+
+          if [ -z "${TF_STATE_BUCKET}" ]; then
+            echo "::error::TF_STATE_BUCKET is strictly required because backend 's3' has no hardcoded bucket. Configure TF_STATE_BUCKET in GitHub Settings -> Secrets and variables -> Actions." >&2
+            exit 1
+          fi
+
+          terraform -chdir="${TARGET_DIR}" init -input=false -backend-config="bucket=${TF_STATE_BUCKET}"
+
+      - name: Execute Drift Detection & ClickUp Alert
+        env:
+          CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
+          CLICKUP_LIST_ID: ${{ secrets.CLICKUP_LIST_ID }}
+        run: |
+          chmod +x scripts/check_drift.sh
+          ./scripts/check_drift.sh "${{ github.event.inputs.environment || 'environments/staging' }}"

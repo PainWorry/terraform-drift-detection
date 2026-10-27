@@ -1,0 +1,36 @@
+# Local .terraform directories
+**/.terraform/*
+**/.terraform/
+.terraform/
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfplan.binary
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Exclude sensitive keys and secrets
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Environment files
+.env
+.env.*
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# OS specific files
+.DS_Store
+Thumbs.db

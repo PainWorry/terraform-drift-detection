@@ -1,0 +1,93 @@
+name: Terraform Automated Reconciliation
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment directory'
+        required: true
+        default: 'environments/staging'
+      reason:
+        description: 'Justification for reconciliation apply'
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: tf-reconcile-${{ github.event.inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Generate Reconciliation Plan
+    runs-on: ubuntu-latest
+    environment: staging-review  # Requires peer review quorum
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_RECONCILE_ROLE_ARN || secrets.AWS_DRIFT_SCANNER_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'ap-southeast-1' }}
+          role-session-name: GHA-Terraform-Reconcile-Plan
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
+          terraform_wrapper: false
+
+      - name: Terraform Init & Plan
+        env:
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET || secrets.TF_STATE_BUCKET }}
+        run: |
+          TARGET_DIR="${{ github.event.inputs.environment }}"
+          terraform -chdir="${TARGET_DIR}" init -input=false -backend-config="bucket=${TF_STATE_BUCKET}"
+          terraform -chdir="${TARGET_DIR}" plan -input=false -out=reconcile.tfplan
+
+      - name: Upload Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reconcile-plan
+          path: ${{ github.event.inputs.environment }}/reconcile.tfplan
+          retention-days: 1
+
+  apply:
+    name: Execute Reconciliation Apply
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: staging-apply  # Requires 2-maintainer approval quorum
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_RECONCILE_ROLE_ARN || secrets.AWS_DRIFT_SCANNER_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'ap-southeast-1' }}
+          role-session-name: GHA-Terraform-Reconcile-Apply
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
+          terraform_wrapper: false
+
+      - name: Download Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: reconcile-plan
+          path: ${{ github.event.inputs.environment }}
+
+      - name: Execute Verified Apply
+        env:
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET || secrets.TF_STATE_BUCKET }}
+        run: |
+          TARGET_DIR="${{ github.event.inputs.environment }}"
+          terraform -chdir="${TARGET_DIR}" init -input=false -backend-config="bucket=${TF_STATE_BUCKET}"
+          terraform -chdir="${TARGET_DIR}" apply -input=false reconcile.tfplan

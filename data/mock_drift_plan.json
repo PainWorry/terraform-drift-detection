@@ -1,0 +1,84 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.10.0",
+  "resource_changes": [
+    {
+      "address": "aws_security_group.drift_canary",
+      "type": "aws_security_group",
+      "name": "drift_canary",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "arn": "arn:aws:ec2:ap-southeast-1:123456789012:security-group/sg-0a8b7c6d5e4f3210a",
+          "id": "sg-0a8b7c6d5e4f3210a",
+          "name": "onelink-staging-drift-canary-sg",
+          "description": "Security group for live drift detection canary testing",
+          "vpc_id": "vpc-091a2b3c4d5e6f780",
+          "ingress": [
+            {
+              "cidr_blocks": [
+                "10.0.0.0/8"
+              ],
+              "description": "Managed by Terraform - Baseline HTTPS",
+              "from_port": 443,
+              "protocol": "tcp",
+              "to_port": 443,
+              "ipv6_cidr_blocks": [],
+              "prefix_list_ids": [],
+              "security_groups": [],
+              "self": false
+            },
+            {
+              "cidr_blocks": [
+                "0.0.0.0/0"
+              ],
+              "description": "OUT-OF-BAND CLICKOPS: Urgent SSH Debugging",
+              "from_port": 22,
+              "protocol": "tcp",
+              "to_port": 22,
+              "ipv6_cidr_blocks": [],
+              "prefix_list_ids": [],
+              "security_groups": [],
+              "self": false
+            }
+          ],
+          "tags": {
+            "Environment": "staging",
+            "ManagedBy": "Terraform",
+            "Purpose": "DriftCanary"
+          }
+        },
+        "after": {
+          "arn": "arn:aws:ec2:ap-southeast-1:123456789012:security-group/sg-0a8b7c6d5e4f3210a",
+          "id": "sg-0a8b7c6d5e4f3210a",
+          "name": "onelink-staging-drift-canary-sg",
+          "description": "Security group for live drift detection canary testing",
+          "vpc_id": "vpc-091a2b3c4d5e6f780",
+          "ingress": [
+            {
+              "cidr_blocks": [
+                "10.0.0.0/8"
+              ],
+              "description": "Managed by Terraform - Baseline HTTPS",
+              "from_port": 443,
+              "protocol": "tcp",
+              "to_port": 443,
+              "ipv6_cidr_blocks": [],
+              "prefix_list_ids": [],
+              "security_groups": [],
+              "self": false
+            }
+          ],
+          "tags": {
+            "Environment": "staging",
+            "ManagedBy": "Terraform",
+            "Purpose": "DriftCanary"
+          }
+        }
+      }
+    }
+  ]
+}
